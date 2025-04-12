@@ -81,9 +81,9 @@ const getCsrfToken = async () => {
     const response = await fetch("/api/v1/csrf-token");
     const data = await response.json();
     csrf_token.value = data.csrf_token;
-    console.log("CSRF token fetched:", csrf_token.value);
+    //console.log("CSRF token fetched:", csrf_token.value);
   } catch (error) {
-    console.error("Error fetching CSRF token:", error);
+    //console.error("Error fetching CSRF token:", error);
   }
 };
 
@@ -114,7 +114,7 @@ const saveMovie = async () => {
       if (fileInput.value) fileInput.value.value = "";
     } else {
       success.value = false;
-      console.log("Validation error:", data);
+      //console.log("Validation error:", data);
       message.value = Array.isArray(data.errors)
         ? data.errors.join(" | ")
         : "Failed to add movie.";
@@ -122,7 +122,7 @@ const saveMovie = async () => {
   } catch (error) {
     success.value = false;
     message.value = "An unexpected error occurred.";
-    console.error("Save error:", error);
+    //.error("Save error:", error);
   }
 };
 
