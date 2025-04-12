@@ -59,12 +59,6 @@ def add_header(response):
     response.headers['Cache-Control'] = 'public, max-age=0'
     return response
 
-
-@app.errorhandler(404)
-def page_not_found(error):
-    """Custom 404 page."""
-    return render_template('404.html'), 404
-
 @app.route('/api/v1/movies', methods=['POST'])
 def movies():
     form = MovieForm()

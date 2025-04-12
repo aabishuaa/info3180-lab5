@@ -1,35 +1,59 @@
 <template>
-  <div>
-    <h2>Add a Favorite Movie</h2>
-
-    <div v-if="successMessage" class="alert alert-success">
-      {{ successMessage }}
-    </div>
-    <ul v-if="errors.length" class="alert alert-danger">
-      <li v-for="error in errors" :key="error">{{ error }}</li>
-    </ul>
+  <div class="movie-form-wrapper container mt-5 mb-5">
+    <h2 class="mb-4 text-primary">Add a Favorite Movie</h2>
 
     <form
       id="movieForm"
       @submit.prevent="saveMovie"
       enctype="multipart/form-data"
     >
-      <div class="form-group mb-3">
-        <label for="title">Movie Title</label>
-        <input type="text" name="title" class="form-control" />
+      <div class="mb-3">
+        <label for="title" class="form-label">Movie Title</label>
+        <input
+          v-model="formData.title"
+          type="text"
+          class="form-control"
+          id="title"
+          name="title"
+          required
+        />
       </div>
 
-      <div class="form-group mb-3">
-        <label for="description">Description</label>
-        <textarea name="description" class="form-control"></textarea>
+      <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <textarea
+          v-model="formData.description"
+          class="form-control"
+          id="description"
+          name="description"
+          rows="3"
+          required
+        ></textarea>
       </div>
 
-      <div class="form-group mb-3">
-        <label for="poster">Poster</label>
-        <input type="file" name="poster" class="form-control" />
+      <div class="mb-3">
+        <label for="poster" class="form-label">Movie Poster</label>
+        <input
+          type="file"
+          class="form-control"
+          id="poster"
+          name="poster"
+          ref="fileInput"
+          accept="image/*"
+          required
+          @change="handleFileChange"
+        />
       </div>
 
-      <button type="submit" class="btn btn-primary">Add Movie</button>
+      <button type="submit" class="btn btn-primary">Submit</button>
+
+      <div
+        v-if="message"
+        class="alert mt-4"
+        :class="{ 'alert-success': success, 'alert-danger': !success }"
+      >
+        {{ message }}
+      </div>
     </form>
   </div>
 </template>
@@ -37,46 +61,94 @@
 <script setup>
 import { ref, onMounted } from "vue";
 
-let csrf_token = ref("");
-let successMessage = ref("");
-let errors = ref([]);
+const formData = ref({
+  title: "",
+  description: "",
+  poster: null,
+});
 
-function getCsrfToken() {
-  fetch("/api/v1/csrf-token")
-    .then((response) => response.json())
-    .then((data) => {
-      csrf_token.value = data.csrf_token;
+const fileInput = ref(null);
+const message = ref("");
+const success = ref(false);
+const csrf_token = ref("");
+
+const handleFileChange = (e) => {
+  formData.value.poster = e.target.files[0];
+};
+
+const getCsrfToken = async () => {
+  try {
+    const response = await fetch("/api/v1/csrf-token");
+    const data = await response.json();
+    csrf_token.value = data.csrf_token;
+    console.log("CSRF token fetched:", csrf_token.value);
+  } catch (error) {
+    console.error("Error fetching CSRF token:", error);
+  }
+};
+
+// Save movie via POST
+const saveMovie = async () => {
+  const form = new FormData();
+  form.append("title", formData.value.title);
+  form.append("description", formData.value.description);
+  form.append("poster", formData.value.poster);
+
+  try {
+    const response = await fetch("/api/v1/movies", {
+      method: "POST",
+      body: form,
+      headers: {
+        "X-CSRFToken": csrf_token.value,
+      },
+      credentials: "same-origin",
     });
-}
 
-function saveMovie() {
-  let movieForm = document.getElementById("movieForm");
-  let form_data = new FormData(movieForm);
+    const data = await response.json();
 
-  fetch("/api/v1/movies", {
-    method: "POST",
-    body: form_data,
-    headers: {
-      "X-CSRFToken": csrf_token.value,
-    },
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.message) {
-        successMessage.value = data.message;
-        errors.value = [];
-        movieForm.reset();
-      } else {
-        successMessage.value = "";
-        errors.value = data.errors;
-      }
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-}
+    if (response.ok) {
+      success.value = true;
+      message.value = data.message || "Movie added successfully!";
+      // Reset form
+      formData.value = { title: "", description: "", poster: null };
+      if (fileInput.value) fileInput.value.value = "";
+    } else {
+      success.value = false;
+      console.log("Validation error:", data);
+      message.value = Array.isArray(data.errors)
+        ? data.errors.join(" | ")
+        : "Failed to add movie.";
+    }
+  } catch (error) {
+    success.value = false;
+    message.value = "An unexpected error occurred.";
+    console.error("Save error:", error);
+  }
+};
 
 onMounted(() => {
   getCsrfToken();
 });
 </script>
+
+<style scoped>
+.movie-form-wrapper {
+  max-width: 600px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+}
+
+.alert-success {
+  color: #0f5132;
+  background-color: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.alert-danger {
+  color: #842029;
+  background-color: #f8d7da;
+  border-color: #f5c2c7;
+}
+</style>
